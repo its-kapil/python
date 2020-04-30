@@ -1,0 +1,38 @@
+from datetime import datetime
+import boto3
+import json
+
+s3 = boto3.resource('s3')
+folder = 'anuj/'                                    ## --> specified folder in source bucket
+
+current_time = datetime.now()
+time_folder_name = current_time.strftime('%Y%m%d_%H_%M')
+time_folder_prefix = time_folder_name + "/"
+
+dest_bucket = s3.Bucket('lambdadestination14apr')           ### --> destination bucket
+src_bucket = s3.Bucket('test12lam')                         ### --> source bucket
+
+print('Loading function')
+
+
+def lambda_handler(event, context):
+    message = event['Records'][0]['Sns']['Message']
+    message_to_dict = json.loads(message)
+
+    src_bucket = str(message_to_dict["Records"][0]["s3"]["bucket"]["name"])
+    src_file_key = str(message_to_dict["Records"][0]["s3"]["object"]["key"])
+
+    if folder in src_file_key:
+        dest_key = time_folder_prefix + src_file_key.split('/')[1]
+        s3.Object(dest_bucket.name, dest_key).copy_from(CopySource={'Bucket': src_bucket, 'Key': src_file_key})
+        
+		obj_in_bucket = list(dest_bucket.objects.filter(Prefix=dest_key))
+        if obj_in_bucket[0].key == dest_key:
+            s3.Object(dest_bucket.name, time_folder_prefix + 'success').put(Body="")
+
+
+
+
+
+    output = "file {} has been copied to {} bucket".format(src_file_key, dest_bucket)
+    return output
